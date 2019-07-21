@@ -1,0 +1,58 @@
+---
+title: "Homework 8"
+author: "Anthony Cunningham"
+date: "April 10, 2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, message=FALSE, warning=FALSE)
+```
+
+# 1 Air Pollution Data
+
+```{r Loading Air Poll Data}
+data(calif.air.poll, package = "SemiPar")
+```
+
+```{r Scatter Plot Matrix Air Poll Data}
+library(lattice)
+splom(calif.air.poll)
+```
+
+Using this scatter plot matrix of California Air Pollution Data in 1976, one can notice a clear trend between Ozone Level and Inversion Base Temperature, in that as the Temperature increases, Ozone Level tends to accelerate, or increase at a faster rate. Another trend one may notice between Inversion Base Height and Daggett Pressure Gradient is that, as Height increases, Pressure Gradient tends to increase, but at a decreasing rate. However, this relationship does appear to be noisy, especially at higher values of Height. I noticed this moreso from the densities of the points at lower levels of Height, where Pressure Gradient initially increased at a high rate, but slowed down at a Height of about 1000 feet or so. One more trend that I notice is that Inversion Base Temperature tends to decrease as Height increases, though with some pretty notable outliers at the highest value of Height, 5000 feet, where some temperatures are between 60 and 70 degress Fahrenheit, which appears odd.
+
+```{r CoPlot of Ozone vs Temp Conditioned on Pressure Gradient}
+xyplot(ozone.level ~ inversion.base.temp | equal.count(daggett.pressure.gradient, 9), type = c("p", "smooth"), col.line = "red", 
+       data = calif.air.poll)
+```
+
+Using this Conditioning Plot of Ozone Levels vs Inversion Base Temperatures, conditioned on Daggett Pressure Gradients, one notices that upward trends of Ozone Levels with respect to higher Temperatures are more pronounced for moderate values of Pressure Gradient. For high and low levels, especially, of Pressure Gradient, Ozone Levels tend to increase as Temperature increases, but at much lower magnitudes, especially at the low end of Pressure Gradient.
+
+# 2 Olive Oils
+
+```{r Olive Oil Data Loading}
+olives <- read.csv("http://homepage.divms.uiowa.edu/~luke/data/olives.csv")
+```
+
+```{r Filter Olive Oil to just North Region}
+library(dplyr)
+olives_north <- filter(olives, Region == "North" & Area == c("East-Liguria", "Umbria", "West-Liguria"))
+olives_north$Area <- factor(olives_north$Area, levels = c("Umbria", "East-Liguria", "West-Liguria"))
+olives_north$Region <- factor(olives_north$Region, levels = "North")
+```
+
+```{r Scatter Plot Matrix of oil types}
+splom(~olives_north[3:10], groups = Area, data = olives_north, auto.key = TRUE, pscales = 0)
+```
+
+From the scatter plot matrix, it appears that olives from the Umbria area of the North region can be identified with a decent amount of accuracy at low levels of palmitoleic and stearic. Regardless of other oil types, Umbrian olives tend to be low in both oils.
+
+```{r Parallel Coordinates Plot of Oil Types}
+o1 <- select(olives_north, -Region, -Test.Training)
+o1 <- select(o1, Area, palmitoleic, stearic, oleic, everything())
+o1 <- mutate(o1, palmitoleic = -palmitoleic, stearic = -stearic, oleic = -oleic)
+parallelplot(~o1[2:9], groups = Area, data = o1, horizontal.axis = FALSE, auto.key = TRUE)
+```
+
+The Parallel Coordinates Plot tells a similar story, in that lower levels of palmitoleic signify an olive from the Umbrian area of Northern Italy; same for stearic, although with a slight bit of overlap. One interesting observation that I did not notice in the Scatter Plot Matrix is that Umbrian olives tend to fall on a narrowly-defined range of oleic oil, with minimal overlap. 

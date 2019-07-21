@@ -1,0 +1,133 @@
+---
+title: "Homework 6"
+author: "Anthony Cunningham"
+date: "March 8, 2019"
+output: html_document
+---
+
+#Part 1
+
+```{r, Recent MPG Data Wrangling , echo=FALSE, message=FALSE}
+library(dplyr)
+library(readr)
+if (! file.exists("vehicles.csv.zip"))
+  download.file("http://www.stat.uiowa.edu/~luke/data/vehicles.csv.zip",
+                "vehicles.csv.zip")
+newmpg <- read_csv("vehicles.csv.zip", guess_max = 100000)
+mpgRecent <- filter(newmpg, year >= 2009 & year < 2019, is.na(evMotor))
+mpg2018 <- filter(mpgRecent, year == 2018,is.na(evMotor))
+```
+
+```{r, TopCity MPG Manufacturers Wrangling, echo=FALSE}
+mpg_manuf <- summarize(group_by(mpg2018, make), avg_city = mean(city08, na.rm = TRUE))
+top_manuf <- top_n(mpg_manuf, 5, avg_city)
+top_manuf
+```
+
+The top 5 manufacturers of non-electric vehicles in city mpg are:
+
+Mitsubishi
+Mazda
+Honda
+Fiat
+MINI
+
+```{r, top_manuf Wrangling, echo=FALSE}
+top_manuf_hist <- filter(mpgRecent, make == "Mitsubishi" | make == "Mazda" | make == "Honda" | make == "Fiat"| make == "MINI")
+top_manuf_mpgHist <- summarize(group_by(top_manuf_hist, make, year), avg_city = mean(city08, na.rm = TRUE))
+```
+
+```{r, Slope Graph of citympg vs year by make, echo=FALSE, message=FALSE}
+library(ggplot2)
+slope_mpg <- ggplot(top_manuf_mpgHist, aes(x = year, y = avg_city, group = make)) + geom_line(aes(color = make))
+slope_mpg
+```
+
+#Part 2
+
+```{r, flights dataset reading in, echo=FALSE, message=FALSE}
+library(nycflights13)
+```
+
+```{r, avg arrival delay by airport and hour, echo=FALSE}
+arrive <- summarize(group_by(flights, origin, hour), avg_arr_delay = mean(arr_delay, na.rm = TRUE))
+slope_arrive <- ggplot(arrive, aes(x = hour, y = avg_arr_delay, group = origin)) + geom_line(aes(color = origin))
+slope_arrive
+```
+
+Among the non-cancelled flights, an early-morning departure (5 am - 7 am) is the most suitable if one wants to arrive to their destination without any delay. 
+
+```{r, echo=FALSE, message=FALSE}
+cancelled <- filter(flights, is.na(dep_time) & is.na(arr_time))
+num_cancelled <- summarize(group_by(cancelled, origin, hour), n_cancelled = n())
+num_flights <- summarize(group_by(flights, origin, hour), n_flights = n())
+prop_cancelled <- left_join(num_cancelled, num_flights)
+prop_cancelled <- mutate(prop_cancelled, perc_cancelled = n_cancelled/n_flights)
+slope_cancelled <- ggplot(prop_cancelled, aes(x = hour, y = perc_cancelled, group = origin)) + geom_line(aes(color = origin))
+slope_cancelled
+```
+
+Flights tend to be cancelled more often later in the day, from about 4pm to about 10pm.  Departing flights from JFK airport tend to have the lowest proportion of flights cancelled regardless of time.
+
+```{r, echo = FALSE, message=FALSE}
+flights_long <- filter(flights, distance >= 1000)
+flights_short <- filter(flights, distance < 1000)
+num_flights_long <- summarize(group_by(flights_long, origin, hour), n_flights_long = n())
+num_flights_short <- summarize(group_by(flights_short, origin, hour), n_flights_short = n())
+
+
+cancelled_long <- filter(cancelled, distance >= 1000)
+cancelled_short <- filter(cancelled, distance < 1000)
+num_cancelled_long <- summarize(group_by(cancelled_long, origin, hour), n_cancelled_long = n())
+num_cancelled_short <- summarize(group_by(cancelled_short, origin, hour), n_cancelled_short = n())
+
+prop_cancelled_long <- left_join(num_cancelled_long, num_flights_long)
+prop_cancelled_long <- mutate(prop_cancelled_long, perc_cancelled_long = n_cancelled_long/n_flights_long)
+prop_cancelled_short <- left_join(num_cancelled_short, num_flights_short)
+prop_cancelled_short <- mutate(prop_cancelled_short, perc_cancelled_short = n_cancelled_short/n_flights_short)
+
+slope_cancelled_long <- ggplot(prop_cancelled_long, aes(x = hour, y = perc_cancelled_long, group = origin)) + 
+  geom_line(aes(color = origin))
+slope_cancelled_short <- ggplot(prop_cancelled_short, aes(x = hour, y = perc_cancelled_short, group = origin)) + 
+  geom_line(aes(color = origin))
+gridExtra::grid.arrange(slope_cancelled_long, slope_cancelled_short, nrow = 2)
+```
+
+My conclusion is more or less the same after taking into account long-distance flights (flights scheduled to travel >= 1000 miles): the proportion of flights cancelled tends to be a bit higher in the late-afternoon to evening times.  There is a noticeable spike in cancellations at 8pm from Laguardia, so I would want to fly out of a different airport at 8pm.  Also, JFK appears to still have the lowest percentage of flights cancelled, with this advantage emphasized in the late-afternoon to evening flight times.
+
+#Part 3
+
+```{r, echo=FALSE}
+weather <- weather %>% mutate(wind_speed = replace(wind_speed, wind_speed > 1000, NA))
+## Note: this line of code found on 
+##https://community.rstudio.com/t/how-do-i-filter-a-variable-by-a-value-and-replace-all-these-values/3222
+## and was created by user 'Mark'
+```
+
+```{r}
+filter(count(weather, origin, time_hour), n > 1)
+```
+
+Note: "origin" and "time_hour" are used as primary keys (in the Weather table) to merge the Flights and Weather table. 
+
+```{r, echo=FALSE}
+fl_weather <- left_join(flights, weather, by = c("origin", "time_hour"))
+```
+
+
+```{r, echo=FALSE}
+fl_weather_group <- summarize(group_by(fl_weather, wind_speed), avg_dep_delay = mean(dep_delay, na.rm=TRUE))
+```
+
+```{r, echo=FALSE, message=FALSE}
+ggplot(fl_weather_group, aes(x = wind_speed, y = avg_dep_delay)) + geom_point()
+```
+
+As wind speed increases, the average departure delay tends to increase, while becoming highly variable for greater wind speeds.
+
+```{r, echo=FALSE, message = FALSE}
+fl_weather_group2 <- summarize(group_by(fl_weather, wind_speed), avg_dep_delay = mean(dep_delay, na.rm=TRUE), num_dep = n())
+ggplot(fl_weather_group2, aes(x = wind_speed, y = avg_dep_delay)) + geom_point(aes(size = num_dep))
+```
+
+After taking into account the number of departures at each wind_speed, we notice that the large amount of variability in average departure delays at higher wind speeds can be partially explained by the small number of departures at those wind speeds.

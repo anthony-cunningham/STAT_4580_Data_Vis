@@ -1,0 +1,23 @@
+---
+title: "Homework 1"
+author: "Anthony Cunningham"
+date: "January 18, 2019"
+output: html_document
+---
+(From the R Documentation) The "Faithful" dataset measures the waiting time between eruptions and the duration of the eruption for the Old Faithful geyser in Yellowstone National Park.
+
+```{r Faithful Header}
+head(faithful)
+```
+
+```{r Faithful Summary}
+summary(faithful)
+```
+
+```{r Eruptions Histogram}
+hist(faithful$eruptions)
+```
+
+```{r Waiting Time Histogram}
+hist(faithful$waiting)
+```

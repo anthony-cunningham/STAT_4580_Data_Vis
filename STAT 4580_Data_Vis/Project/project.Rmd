@@ -1,0 +1,235 @@
+---
+title: "Historical Men's College Basketball Insights Using Kenpom Data"
+author: "Anthony Cunningham"
+date: "May 3, 2019"
+output: html_document
+---
+
+# 1 Introduction
+
+Kenpom.com (<https://kenpom.com/>) contains data on all NCAA Division 1 Men's Collegiate Basketball teams from 2002-present. This data consists of an offensive, defensive and overall efficiency ratings system, called Adjusted Efficiency Margin, created and updated by the proprietor of this website, Ken Pomeroy. An in-depth explanation of this system can be found here: <https://kenpom.com/blog/ratings-explanation/>. His work is widely cited in popular sports media, and is used as an evaluation tool in deliberating the selection of teams who may participate in the annual NCAA Men's Basketball Tournament every March. Additionally, this data also includes basic Win/Loss data, as well as a measure of luck, defined as the difference in a team's actual vs. expected winning percentage. There is also data on a team's Strength of Schedule, formed using a team's opponents' Adjusted Efficiency Margins.
+
+How are these measures calculated, and what are their interpretations? A team's Adjusted Offensive Efficiency ("AdjO") is the number of points a team is predicted to score per 100 possessions against an average team at a neutral site. According to his explanation (found here: <https://kenpom.com/blog/national-efficiency/>), this is calculated using previous game results, making an adjustment for the pace of a game. Pace is defined as the number of possessions a team has in 40 minutes of game play, the length of a standard collegiate basketball game. A team's Adjusted Defensive Efficiency ("AdjD") is the number of points a team is predicted to allow against an average team at a neutral site per 100 possessions. Adjusted Efficiency Marging ("AdjEM") is the difference between AdjO and AdjD. AdjEM is designed as a predictive tool, aiming to predict the outcome and score of a game. For example, if Team A has an AdjEM of +25, and Team B had an AdjEM of +15, Team A is predicted to win by 10 points if a game is taking place at a neutral site (there is an adjustment for Home-Court Advantage: the home team's AdjEM increases by 2.8, the visiting team's AdjEM decreases by the same amount; I do not know how this was determined). With this data, I plan to answer a variety of questions relating to the historical comparisons of basketball teams and how they stack up with one another.
+
+```{r Setup, include=FALSE}
+knitr::opts_chunk$set(echo=FALSE, message=FALSE, error=FALSE, warning=FALSE)
+```
+
+```{r Entering kenpom Data from Website}
+library(rvest)
+
+## Read in 2019 Table from KenPom website
+
+kenpom_url <- "https://kenpom.com/index.php"
+kenpom_page <- read_html(kenpom_url)
+kenpom_tbl <- html_table(kenpom_page)[[1]]
+
+## Add 2019 Table as 18th item in a list
+teams <- NULL
+teams[[18]] <- kenpom_tbl
+
+## Add 2002-2018 to the list
+years <- as.character(c(2002:2018))
+kenpom_url <- "https://kenpom.com/index.php?y="
+for(i in 1:length(years)){
+  kenpom_page <- read_html(paste0(kenpom_url, years[i]))
+  kenpom_tbl <- html_table(kenpom_page)[[1]]
+  teams[[i]] <- kenpom_tbl
+}
+```
+
+```{r Some Modest Cleaning of kenpom Data}
+## CITATION: https://www.datacamp.com/community/tutorials/tutorial-on-loops-in-r for the loop help
+## CITATION: https://stackoverflow.com/questions/13590139/remove-numbers-from-alphanumeric-characters by 
+## Stack Overflow user Cleonidas for the "removeNumbers" recommendation
+
+## Clean List
+
+# Delete Wrong Observations
+library(dplyr)
+
+for(i in 1:length(teams)){
+  # Rename Duplicate Column Variables
+  colnames(teams[[i]]) <- teams[[i]][1,]
+  colnames(teams[[i]])[7] <- "AdjO_Rk"
+  colnames(teams[[i]])[9] <- "AdjD_Rk"
+  colnames(teams[[i]])[11] <- "AdjT_Rk"
+  colnames(teams[[i]])[13] <- "Luck_Rk"
+  colnames(teams[[i]])[14] <- "Opp_AdjEM"
+  colnames(teams[[i]])[15] <- "Opp_Rk"
+  colnames(teams[[i]])[17] <- "OppO_Rk"
+  colnames(teams[[i]])[19] <- "OppD_Rk"
+  colnames(teams[[i]])[20] <- "NCOpp_AdjEM"
+  colnames(teams[[i]])[21] <- "NCOpp_Rk"
+  # Get Rid of Non-Observations
+  teams[[i]] <- filter(teams[[i]], Opp_AdjEM != "Strength of Schedule")
+  teams[[i]] <- filter(teams[[i]], Rk != "Rk")
+}
+
+# Remove Seed Numbers from Team Names
+library(tm)
+for(i in 1:length(teams)){
+  teams[[i]]$Team <- sub("[[:digit:]]", "", teams[[i]]$Team)
+  teams[[i]]$Team <- trimws(teams[[i]]$Team)
+} 
+
+# Add "Year" variable and add Year to "Team" variable ##
+for(i in 1:length(teams)){
+  for(j in 2002:2019){
+    if(i == j - 2001){
+      teams[[i]] <- mutate(teams[[i]], Year = j, Team = paste0(j, " ", Team))
+      teams[[i]] <- select(teams[[i]], Rk, Year, everything())
+    } else{
+      next
+    }
+  }
+}
+
+# Coerce Appropriate Variables to Type "Numeric"
+for(i in 1:length(teams)){
+  for(j in 6:22){
+    teams[[i]][j] <- as.numeric(teams[[i]][,j])
+  }
+}
+```
+
+```{r Combine into One Tibble}
+## Combine All Years of Data into One Tibble ##
+teams_agg <- teams[[1]]
+for (i in 2:length(teams)){
+  teams_agg <- rbind(teams_agg, teams[[i]])
+}
+```
+
+```{r Check For Missing Values, include=FALSE}
+## Check for Missing Values ##
+missing <- for(i in 1:22){
+  filter(teams_agg, is.na(teams_agg[i]))
+}
+length(missing)
+```
+
+# 2 The Best Teams in Recent College Basketball History
+
+```{r Top 10 Teams according to kenpom Getting Data In}
+best10_teams_ever <- top_n(teams_agg, 10, AdjEM)
+ranked_best10_ever <- mutate(best10_teams_ever, Team = reorder(Team, AdjEM))
+```
+
+```{r DotPlot of Ten Best Kenpom Teams}
+library(ggplot2)
+best_dot <- ggplot(ranked_best10_ever) + geom_point(aes(x = Team, y = AdjEM)) + coord_flip()
+```
+
+```{r Bar Chart of Ten Best Kenpom Teams with Colors}
+## CITATION: https://www.colorcodehex.com/html-color-picker.html for colors
+top10_colors <- c("#072D75", "#D42029", "#0307EB", "#C2062F", "#ED0C32", "#113F9C", "#0307EB", "#DE6B07", "#3D92ED", "#0616C4")
+best_bar <- ggplot(ranked_best10_ever) + geom_bar(aes(x = Team, y = AdjEM), fill = top10_colors, stat = "identity") + 
+  coord_flip() + 
+  theme_void() + 
+  geom_text(aes(x = Team, y = 3, label = Team), hjust = "left", color = "white") +  
+  geom_text(aes(x = Team, y = AdjEM - 3, label = AdjEM), hjust = "right", color = "white")
+```
+
+```{r Arrange using cowplot}
+### Put on same page
+## CITATION: http://www.sthda.com/english/articles/24-ggpubr-publication-ready-plots/81-ggplot2-easy-way-to-mix-multiple-graphs-on-the-same-page/#arrange-on-one-page 
+## for both of these function
+figure <- cowplot::plot_grid(best_dot, best_bar, ncol = 2, nrow = 1)
+ggpubr::annotate_figure(figure, top = ggpubr::text_grob("Top 10 Kenpom Teams, By Adjusted Efficiency Margin", hjust = 0.4, 
+                                                        face = "bold", size = 14))
+```
+
+According to Kenpom, the 2015 Kentucky team is, far and away, the best men's college basketball team in recent history (from 2002-2019), holding a 1.7 points per 100 possessions advantage over the next-best Kenpom team, the 2008 Kansas team. The Dot Plot makes this distinction clear, as the position of Kentucky's dot relative to Kansas' dot seems to be farther away than Kansas to the 10th-best team, 2019 Gonzaga. Note that the bar chart on the right has a zero baseline to prevent visual bias.
+
+# 3 Ranking the Most Difficult Conferences to Play In
+
+```{r Group and Rank by Conference}
+### Group and Rank Conferences by AdjEM
+conference <- summarize(group_by(teams_agg, Conf), avg_conf_AdjEM = mean(AdjEM))
+ranked_conf <- mutate(conference, Conf = reorder(Conf, avg_conf_AdjEM))
+```
+
+```{r Dot Plot of Conference AdjEM}
+### Dot Plot
+ggplot(ranked_conf) + geom_point(aes(x = Conf, y = avg_conf_AdjEM)) + coord_flip() + 
+  geom_hline(yintercept = 0, linetype = "dashed") + 
+  labs(title = "Kenpom's Best Conferences, by Average Adjusted Efficiency Margin", y = "Conference-Averaged AdjEM", 
+       x = "Conference Abbreviation") + 
+  theme(plot.title = element_text(size = 14, hjust = 0.5))
+```
+
+According to Kenpom, the Atlantic Coast Conference ("ACC") has the best average Adjusted Efficiency Margin among its members from 2002-2019, although the margin is slim, with the Big 12, Big 10 and Big East close behind. How slim are these margins?
+
+Top 4 Conferences in Average AdjEM:
+
+```{r Rank Top Four Conferences}
+### Rank Top 4
+top4_conf <- top_n(conference, 4, avg_conf_AdjEM)
+arrange(top4_conf, desc(avg_conf_AdjEM))
+```
+
+So, an average ACC team would have been predicted to beat an average Big East team by 1.1 points if this hypothetical game were to take place with each team at the peak of their powers, on a neutral site.
+
+According to the Dot Plot above, there appears to be a significant drop off from the Pacific 12 to the American Athletic Conference. This is consistent with the intuition that there is a large gap in both coaching and player talent, where a small concentration of teams win a higher proportion of games than the vast majority due to these talent advantages. However, it's worth investigating the trend in competitive balance, as these overall averages may have been impacted by a subsection of years where most of the talent is highly-concentrated. Does this phenomenon still exist, or is coaching and player talent becoming more evenly-distributed? After all, we did witness the 2018 team from tiny Loyola-Chicago advance to the Final Four.
+
+# 4 Trends in Competitive Balance within Men's College Basketball
+
+```{r Separate Wins and Losses}
+teams_cb <- teams_agg
+foo <- strsplit(teams_agg$`W-L`, "[-]")
+wins <- NULL
+losses <- NULL
+for(i in 1:length(foo)){
+  wins[i] <- foo[[i]][1]
+  losses[i] <- foo[[i]][2]
+}
+```
+
+```{r Add New Variables}
+### Add Wins, Losses, and Total Games Played as New Variables
+wins <- as.numeric(wins)
+losses <- as.numeric(losses)
+teams_cb <- mutate(teams_cb, Wins = wins, Losses = losses, Games_Played = Wins + Losses, Win_Perc = Wins/Games_Played)
+teams_cb <- select(teams_cb, Rk, Year, Team, Conf, Win_Perc, Wins, Losses, Games_Played, everything())
+```
+
+```{r Calculate NollScully Measure of Competitive Balance for Each Year}
+cb_year <- summarize(group_by(teams_cb, Year), sd = sd(Win_Perc), ideal_sd = mean(Win_Perc)/sqrt(mean(Games_Played)), 
+                     noll_scully = sd/ideal_sd)
+```
+
+```{r Time Series of Competitive Balance}
+ggplot(cb_year, aes(y = noll_scully, x = Year)) + geom_line() + geom_point()
+```
+
+From the limited time period that we have, competitive balance appears to fluctuate between the interval of 1.85 to 2.10. For comparison, the NFL's average Noll-Scully value is 1.48, while the NBA's average Noll-Scully value is 2.84, according to Phil Birnbaum (<http://blog.philbirnbaum.com/2016/04/noll-scully-doesnt-measure-anything-real.html>). So, men's college basketball appears to have been relatively unbalanced, although not to the extent of their professional counterpart. It is also interesting to note that this Noll-Scully appears to have be somewhat cyclical, with periods of relative unbalance in the early-aughts and early-2010's, while periods of relative competitive balance occuring during the mid-to-late aughts and the mid-to-late 2010's. We appear to be in a time of relative balance, as competitive balance for this past season, the just-completed 2019 season, has been the most balanced since 2006. However, this is an admittedly narrow timeframe with which to view and forecast.
+
+```{r Forecast Competitive Balance}
+library(forecast)
+fit <- ets(cb_year$noll_scully)
+fc <- forecast(cb_year$noll_scully, model=fit)
+plot(fc)
+```
+
+According to this forecast, Competitive Balance should remain relatively consistent, with little likelihood of extending outside of historical boundaries. Although, if it were to, this forecast would point toward competitive balance decreasing below our historically lowest season, perhaps reaching down towards a Noll-Scully value of 1.80. This forecast obviously does not detect a cyclical trend that we noted earlier, which is entirely plausible.
+
+# 5 Resources Used
+
+Birnbaum, Phil, "Noll-Scully doesn't measure anything real." Sabermetric Research.
+from <http://blog.philbirnbaum.com/2016/04/noll-scully-doesnt-measure-anything-real.html> (accessed April 16, 2019).
+
+Cleonidas, "Remove numbers from alphanumeric characters." Stack Overflow. 
+from <https://stackoverflow.com/questions/13590139/remove-numbers-from-alphanumeric-characters> (accessed March 26, 2019).
+
+Fanara, Carlo, "A Tutorial on Loops in R - Usage and Alternatives." DataCamp. 
+from <https://www.datacamp.com/community/tutorials/tutorial-on-loops-in-r> (accessed March 26, 2019).
+
+"How to Calculate the Noll-Scully Competitive Balance Measure." Team Sports Analysis.
+from <http://teamsportsanalysis.blogspot.com/2012/04/how-to-calculate-noll-scully.html> (accessed April 11, 2019).
+
+"HTML Color Picker." Color Code Hex.
+from <https://www.colorcodehex.com/html-color-picker.html> (accessed March 31, 2019).
+
+Kassambara, Alboukadel. "ggplot2 - Easy Way to Mix Multiple Graphs on The Same Page." STHDA.
+from <http://www.sthda.com/english/articles/24-ggpubr-publication-ready-plots/81-ggplot2-easy-way-to-mix-multiple-graphs-on-the-same-page/#arrange-on-one-page> (accessed April 2, 2019).

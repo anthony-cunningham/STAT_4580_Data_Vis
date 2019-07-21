@@ -1,0 +1,81 @@
+---
+title: "Homework 9"
+author: "Anthony Cunningham"
+date: "April 22, 2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, message=FALSE, warning=FALSE)
+```
+
+# 1 Economic Data
+
+```{r One Plot}
+library(ggplot2)
+data(economics)
+
+library(dplyr)
+
+## Transforms all variables to percentage changes from their respective baselines (which is just their first respective observations)
+econ_pc <- transmute(economics, date = date, pce_pc = ((pce - pce[1])/pce[1]), pop_pc = ((pop - pop[1])/pop[1]), 
+                     psavert_pc = ((psavert - psavert[1])/psavert[1]), uempmed_pc = ((uempmed - uempmed[1])/uempmed[1]), 
+                     unemploy_pc = ((unemploy - unemploy[1])/unemploy[1]))
+library(tidyr)
+
+## Transforms Data Structure to Where We Can Plot All Vars on the Same Plot and ID Them
+econ_rate <- gather(econ_pc, pc_var, perc_change, -1)
+
+## Time Series all on one plot
+ggplot(econ_rate, aes(x = date, y = perc_change)) + geom_line(aes(color = pc_var))
+```
+
+This plot's y-axis represents each respective variable's percent changes relative to their respective baselines (which is just each respective variables' first observation). This transformation can allow us to visualize relative changes, such as with changes in personal consumption, which has steadily grown by over 25% from 1967.
+
+```{r Multiple Plots}
+## Time Series on Multiple Plot
+ggplot(econ_rate, aes(x = date, y = perc_change)) + geom_line() + facet_wrap(~ pc_var, scales = "free_y", ncol = 1)
+```
+
+An interesting feature in the economic data are the stark contrasts in how some of these variables change. For instance, the Personal Consumption Expenditures and Population variables have both consistently and steadily increased (with the exception of a minor blip in expenditures following the 2008 financial crisis), while Savings Rates and both Unemployment measures have fluctuated in a rougly cyclical fashion. While these cyclical patterns are noticeable on the former plot, this cyclical nature really stands out when used in a trellis display. With just one plot, the first thing that stands out is the massive growth rate in Consumption, limiting the ability for the viewer to notice the cyclical nature of the Unemployment observations.
+
+# 2 Florida Death Penalty Data
+
+```{r}
+data(deathpenalty, package = "catdata")
+
+deathpenalty$VictimRace <- factor(deathpenalty$VictimRace, labels = c("black", "white"))
+deathpenalty$DeathPenalty <- factor(deathpenalty$DeathPenalty, labels = c("No", "Yes"))
+deathpenalty$DefendantRace <- factor(deathpenalty$DefendantRace, labels = c("black", "white"))
+```
+
+```{r Bar Chart}
+## Death Penaly Verdict Rates are higher when victim is White, regardless of Defendant's Race
+ggplot(deathpenalty) +
+  geom_col(aes(DefendantRace, Freq, fill = DeathPenalty)) +
+  facet_wrap(~VictimRace) + 
+  labs(title = "Death Penalty Verdicts,\nStratified By Victim's Race")
+```
+
+From this Stacked Bar Chart, we notice that "Yes" Death Penalty Verdicts are lower when the victim is Black than when the victim is White, regardless of Defendant's Race. However, this could just be due to the large differences in frequency, as a lot more White victims appear in this dataset. Perhaps if we compared proportions, we could see a potentially significant difference.
+
+```{r Spline Plot}
+## Spline Plot: shows same conclusion
+library(ggmosaic)
+library(forcats)
+rev_dp <- mutate(deathpenalty, DeathPenalty = fct_rev(DeathPenalty))
+ggplot(rev_dp) +
+  geom_mosaic(aes(weight = Freq, x = product(DefendantRace), fill = DeathPenalty)) +
+  facet_wrap(~VictimRace) + 
+  labs(x = "Defendant's Race", y = "Verdict", title = "Death Penalty Verdicts,\nStratified By Victim's Race")
+```
+
+From this Spline Plot, we see that the proportion of "Yes" Death Penalty verdicts are lower when the victim is Black than when the victim is White, regardless of Defendant's Race. This is consistent with our intuition from the prior Stacked Bar Chart. Visually, there seems to be some dependence between Verdict and Victim Race, but is this statistically significant?
+
+```{r Association Plot}
+## Association Plot with Pearson Residuals: Significantly Lower "Yes" verdicts when victim was black than if Verdict and Victim's Race was independent
+library(vcd)
+mosaic(~ VictimRace + DeathPenalty, data = deathpenalty, gp = shading_max)
+```
+
+From the Association Plot shown above, we see a statistically significant difference in "Yes" Verdicts among Black victims. There is very little chance that, if Verdict and Victim's Race were truly independent, we would see such low rates of "Yes" verdicts when the victim's race is Black.  

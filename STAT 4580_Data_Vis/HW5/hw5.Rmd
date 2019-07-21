@@ -1,0 +1,79 @@
+---
+title: "Homework 5"
+author: "Anthony Cunningham"
+date: "February 26, 2019"
+output: html_document
+---
+
+# PART 1 - Interactive Gapminder Plot
+
+```{r Starting Up, echo=FALSE, message=FALSE}
+library(gapminder)
+library(ggplot2)
+library(plotly)
+library(dplyr)
+```
+
+```{r Getting Gapminder Data In, echo=FALSE}
+gapminder <- gapminder
+gapYear <- filter(gapminder, year == 1977 | year == 1987 | year == 1997 | year == 2007)
+```
+
+```{r Simple GG Plot, echo=FALSE, message = FALSE}
+gapPlot <- ggplot(gapYear) + geom_point(aes(x = gdpPercap, y = lifeExp, color = continent, size = pop, text = country)) + 
+  scale_size_area(max_size = 10) + facet_wrap(~ year)
+```
+
+```{r Interactive Plot, echo=FALSE, message=FALSE}
+gapPlotly <- ggplotly(gapPlot, tooltip = "text")
+gapPlotly
+```
+
+# PART 2 - Arrival and Departure Delays
+
+```{r Getting Flight Data In, echo=FALSE, message = FALSE}
+library(nycflights13)
+flights <- nycflights13::flights
+```
+
+```{r Sampling, echo=FALSE, message = FALSE}
+flights15000 <- flights[sample(nrow(flights), 15000),]
+```
+
+```{r Sampled Scatter Plot with Free Range, echo=FALSE}
+delays15000 <- ggplot(flights15000, aes(x = dep_delay, y = arr_delay)) + geom_point(size = 0.5, alpha = 0.5)
+delays15000
+```
+
+This scatter plot shows arrival delay vs departure delay for a sample of flights out of NYC in 2013 (n = 15,000). Sampling, alpha-blending and a reduction in point size are used to combat overplotting.  After about a 6 hour delay in either arrival or departure, data appears to be scarce. However, we can still notice a positive linear relationship in arrival delay times vs departure delay times, particularly when these times are positive (note that a negative delay time signals an early arriving or departing flight).  We can also notice greater variability among arrival delay times for a given flight that departs either on time or early, probably due to the greater number of observations in this interval compared with observations with high departure and/or arrival times, where data is more scarce.
+
+```{r Sampled Scatter Plot with Set Range, echo=FALSE, message = FALSE}
+delays15000_range <- ggplot(flights15000, aes(x = dep_delay, y = arr_delay)) + geom_point(size = 0.5, alpha = 0.5) + 
+  coord_cartesian(xlim = c(-25, 360), ylim = c(-100, 360), expand = FALSE)
+delays15000_range
+```
+
+This plot is zoomed in to flights with delays less than 6 hours. Here, we notice some binning going on, particularly for on-time or early flights, where data is abundant. When one looks at the observations in this dataset, one will notice that values for delay times are minutes expressed as integers, the reason for this visual observation.
+
+# PART 3 - Evaluate a Visualization
+
+The updated visualization in the Vox article includes a different color scheme, focusing more on hues than variety of colors. For instance, the "ALS Ice Bucket Challenge" category is represented with a fuschia color in the updated graph, in contrast with the original graph, which represented this category with a gray color. The most notable change, however, are the sizes of each circle. Notably, the smallest values' representations are larger in the updated version than the original version. Also of note, at the end of the article, there is a note saying "In an earlier version of this article, the size of the graph's circles did not accurately reflect the data." It appears that, originally, the author messed with the size of the representation of the smaller values to show a greater contrast between the highest and lowest values than what was accurate.
+
+Each item represents a type of disease matched with a charity that funds research and support to combat these diseases.  Each item is respresented by a different color in the original graphic. Some color choices are questionable, such as using gray with a cream background, or yellow to represent the smallest-sized value. In the updated graphic, darker hues of colors are used, which I think is more effective as there is not any confusion about which group is which, while providing an easier visualization for matching groups in each attribute. Also, vertical grouping is used to organize each group within each attribute. However, arranging each attribute like this steers the reader toward making horizontal comparisons, when these comparisons are not meaningful. The title of each attribute mitigates this distraction somewhat, but it still isn't entirely intuitive. Each items' attributes consist of the amount of money (in US dollars) raised by the selected organization, and the number of deaths in the US caused by the corresponding disease for the year in which this data was collected (2011). The magnitudes of these attributes are represented by the area of circles (the "marks"). This is easily the most questionable channel used, as humans do not perceive areas when making comparisons very easily, and they are very easy to distort.
+
+```{r, echo=FALSE, message=FALSE}
+library(readr)
+if (! file.exists("dfunds.csv"))
+  download.file("http://homepage.divms.uiowa.edu/~luke/data/dfunds.csv",
+                "dfunds.csv")
+dfunds <- read_csv("dfunds.csv", guess_max = 100000)
+```
+
+```{r, echo=FALSE, message=FALSE}
+donations <- ggplot(dfunds, aes(x = reorder(Disease, Funding), y = Funding, fill = Disease)) + geom_bar(stat = "identity") + 
+  coord_flip()
+deaths <- ggplot(dfunds, aes(x = reorder(Disease, Deaths), y = Deaths, fill = Disease)) + geom_bar(stat="identity") + coord_flip()
+gridExtra::grid.arrange(donations, deaths, nrow = 2)
+```
+
+In this visualization of the same data, I have used bar length as a channel for magnitude of both number of deaths and funding, as this alternative provides an easy way to make comparisons within each attribute without the potential distraction of making the wrong comparison from when each item was vertically-grouped. More importantly, length is a more effective magnitude channel than area.

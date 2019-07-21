@@ -1,0 +1,55 @@
+---
+title: "HW3"
+author: "Anthony Cunningham"
+date: "February 7, 2019"
+output: html_document
+---
+
+# PART 1
+
+```{r Gapminder Data Wrangling, echo=FALSE, message=FALSE}
+library(gapminder)
+library(dplyr)
+gap1990 <- filter(gapminder, year >= 1990)
+```
+
+```{r Faceting Density Plots, echo=FALSE, message=FALSE}
+library(ggplot2)
+ggplot(gap1990) + geom_density(aes(x = lifeExp)) + facet_wrap(~continent)
+```
+
+# PART 2
+
+```{r Gapminder Box Plots, echo=FALSE, message=FALSE}
+ggplot(gap1990) + geom_boxplot(aes(x = continent, y = lifeExp))
+```
+
+# PART 3
+
+```{r Gapminder Ridgeline Plots by Year, echo=FALSE, message=FALSE}
+library(ggridges)
+ggplot(gapminder) + geom_density_ridges(aes(x = lifeExp, y = year, group = year), scale = 1.4)
+```
+
+```{r Gapminder Ridgeline Plots By Year and Continent, echo=FALSE}
+ggplot(gapminder) + geom_density_ridges(aes(x = lifeExp, y = year, group = interaction(year, continent), fill = continent), alpha = 0.8)
+```
+
+The overall distribution of life expectancy has been relatively bimodal throughout the late-20th and early-21st centurie, perhaps respresenting the dichotomy of access to new medical technologies and information between wealthy and poorer countries. However, this bimodality has dissipated somewhat, resulting in the life expectancy of countries becoming more dense toward the higher range of values, with the lower range becoming relatively less dense.  Perhaps this reflects the convergence of these new medical technologies and information across more countries brought about by the drastic efficiency increases in communication across the world.  Indeed, the distributions of life expectancies in Africa and Asia have become more variant, or wider, while Asia in particular has seen an upward shift in life expectancies.  Some countries in Africa and Asia have benefitted from this process of globalized knowledge, pushing densities upward, while some countries, particularly in Africa, are still lagging behind, resulting in greater variance in life expectancy for the African continent, as well as overall.
+
+# PART 4
+
+```{r Misleading Infographic Data Wrangling, echo=FALSE}
+pres <- c("Obama", "Carter", "Clinton", "W.Bush", "Reagan", "H.W.Bush", "Trump")
+pop <- c(0.79, 0.78, 0.68, 0.65, 0.58, 0.54, 0.40)
+presPopularity <- rbind(pres, pop)
+presPopData <- as.data.frame(pop, row.names = pres)
+```
+
+```{r Misleading Infographic Alternative, echo=FALSE}
+pres_Bar <- ggplot(presPopData) + geom_col(aes(y = pop, x = reorder(pres, pop))) + scale_y_continuous(limits = c(0,1)) + coord_flip()
+pres_Dot <- ggplot(presPopData) + geom_point(aes(y = pop, x = reorder(pres, pop))) + scale_y_continuous(limits = c(0,1)) + coord_flip()
+gridExtra::grid.arrange(pres_Bar, pres_Dot, nrow = 1)
+```
+
+The "ABC News" visualization does not accurately represent the values in the stacked bar chart because the upper bound clearly is not set at one.  Since the bar chart displays proportions, the range should be set from zero to one.  Since this chart does not, it implies a much higher approval rating for the presidents with the higher values, as well as invite a ratio comparison of the  "complements" of approval ratings, designated by the colorful portions of the bars; this is like the zero-baseline comparison issue, except with the upper bound.  For example, without a higher bound set at one, it seems like the "disapproval" rating, the complement of the approval rating, for Obama is half of Clinton's disapproval rating when the two presidents first took office. It also makes Obama's approval rating appear to be near 100%, even if it is not very close in magnitude to one.  A bar chart with a range going from zero to one is more appropriate since it addresses this issue of making high values seem higher.  Alternatively, a dot plot addresses this comparison of complements issue since there are no bars that invite a comparison of ratios, even if this is not meaningful.

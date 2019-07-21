@@ -1,0 +1,108 @@
+---
+title: "Homework 4"
+author: "Anthony Cunningham"
+date: "February 15, 2019"
+output: html_document
+---
+
+# PART 1
+
+```{r, Gapminder Data Wrangling, message=FALSE, echo=FALSE}
+library(gapminder)
+gapminder <- gapminder
+library(dplyr)
+gapYear <- filter(gapminder, year == 1977 | year == 1987 | year == 1997 | year == 2007)
+```
+
+```{r, Gapminder Scatter Plots, message=FALSE, echo=FALSE}
+library(ggplot2)
+gapPlot <- ggplot(gapYear) + geom_point(aes(x = gdpPercap, y = lifeExp, color = continent, size = pop)) + 
+  scale_size_area(max_size = 10) + facet_wrap(~ year)
+gapPlot
+```
+
+# PART 2
+
+```{r, mpg Data Wrangling, message=FALSE, echo=FALSE}
+mpg <- ggplot2::mpg
+```
+
+```{r, City vs Engine Displacement, echo=FALSE}
+cityMiles <- ggplot(mpg) + geom_point(aes(x = displ, y = cty))
+cityMiles
+```
+
+As engine displacement increases, city mileage tends to decrease, though the relationship does not appear to be linear.  Also, the variability of automobiles with lower engine displacements seems larger than for autos with higher engine displacements.
+
+```{r, City vs Displacement with Cyl, echo=FALSE}
+cityMiles <- ggplot(mpg) + geom_point(aes(x = displ, y = cty, color = factor(cyl)))
+cityMiles
+```
+
+The number of cylinders an auto has tends to increase with engine displacement.  Once agin, variability among the 4-cyl cars appears to be much greater than the 6- or 8-cyl cars.
+
+```{r, Recode Transmission, echo=FALSE}
+library(dplyr)
+mpg$trans <- c(substr(mpg$trans,0,4))
+mpg$trans <- recode_factor(mpg$trans, "manu" = "manual")
+```
+Note: function "recode_factor" found and utilized with the help of RStudio's help command and the documentation for "dplyr"
+
+```{r, City vs Displ by Cyl and Trans, echo=FALSE}
+cityMiles <- ggplot(mpg) + geom_point(aes(x = displ, y = cty, color = factor(cyl), shape = trans), size = 2)
+cityMiles
+```
+
+The transmission type does not appear to be related with either displacement nor number of cylinders.  There may be some relation between transmission type and city mileage, in that manual transmission types tend to have higher city mpg, but this is not very evident from the plot.
+
+```{r, Count for Trans by Cyl, echo=FALSE}
+cityBar <- ggplot(mpg) + geom_bar(aes(x = factor(cyl), fill = trans), position = "dodge")
+cityBar
+```
+
+It is clear that automatic transmissions tend to have 6- or 8-cylinders, while 4- and 5-cylinder vehicles do not appear to favor one type of transmission over the other.
+
+# PART 3
+
+```{r, Recent MPG Data Wrangling, message=FALSE, echo=FALSE}
+library(readr)
+if (! file.exists("vehicles.csv.zip"))
+  download.file("http://www.stat.uiowa.edu/~luke/data/vehicles.csv.zip",
+                "vehicles.csv.zip")
+newmpg <- read_csv("vehicles.csv.zip", guess_max = 100000)
+mpgRecent <- filter(newmpg, year >= 2009)
+```
+
+```{r, New City vs Displ, message=FALSE, echo=FALSE}
+city1 <- ggplot(mpgRecent) + geom_point(aes(x = displ, y = city08))
+city1
+```
+
+The scatter plot shows a similar relationship between displacement and city mpg for cars of model year 2009 or newer and cars of model yer 2008 and older.  One major difference is that the relationship for newer cars appears to have shifted upward, as the range of cars of model year 2008 or older maxed out at about 35 city mpg, while there are cars pushing 60 city mpg in the newer dataset.
+
+```{r, New City vs Displ by Cyl, message=FALSE, echo=FALSE}
+city2 <- ggplot(mpgRecent) + geom_point(aes(x = displ, y = city08, color = factor(cylinders)))
+city2
+```
+
+There appears to be a similar relationship between number of cylinders and city mpg, in that, as the number of cylinders increases, city mpg tends to decrease.  A notable difference is that there is far more variety when it comes to the number of cylinders a car has.  This relationship still appears to hold true, nonetheless.
+
+```{r, New Recode Transmission, echo=FALSE}
+mpgRecent$trany <- c(substr(mpgRecent$trany,0,4))
+mpgRecent$trany <- recode_factor(mpgRecent$trany, "Manu" = "Manual")
+```
+Note: function "recode_factor" found and utilized with the help of RStudio's help command and the documentation for "dplyr"
+
+```{r, New City vs Displ by Cyl and Trans, message=FALSE, echo=FALSE}
+city3 <- ggplot(mpgRecent) + geom_point(aes(x = displ, y = city08, color = factor(cylinders), shape = trany), size = 2)
+city3
+```
+
+There are a lot more observations that use an Automatic transmission in the newer mpg dataset than in the older one.  Whatever Manual transmissions are observed, they appear to have lower city mpg than the cars with an Automatic tranmission.  In the older mpg dataset, this was less apparent.  Perhaps the technology has improved fuel efficiency for cars with automatic transmissions relative to cars with manual transmissions.
+
+```{r, New Count of Transmission by Cylinder, message=FALSE, echo=FALSE}
+cityNewBar <- ggplot(mpgRecent) + geom_bar(aes(x = factor(cylinders), fill = trany), position = "dodge")
+cityNewBar
+```
+
+As was observed in the last graphic, the number of cars with automatic transmissions is far greater than cars with manual transmissions.  One key difference between the older and newer mpg datasets is that 4-cylinder cars did not seem to favor one transmission over the other in the older dataset; in the newer dataset, 4-cylinder cars now are more likely to come with an automatic transmission, although there are still some 4-cyl vehicles with maunal tranmissions.  As noted, cars with automatic tranmissions appear to have become a lot more popular among auto manufacturers as of late.

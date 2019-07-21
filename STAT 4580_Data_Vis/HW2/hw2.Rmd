@@ -1,0 +1,44 @@
+---
+title: "HW2"
+author: "Anthony Cunningham"
+date: "January 29, 2019"
+output: html_document
+---
+
+# Part 3
+This graph is misleading due to the restricted range of y-values shown; only going from 94-108 million people. Observers inherently notice how each bar stacks up against others, and if the baseline isn't set at zero, such as in this graphic, observers will notice large differences between observations even if they actually aren't that meaningful. For instance, without looking at the axes, observers may think that the value in "2011 Q2" is triple the value in "2009 Q1", even though the actual difference is about 10 million, or 107-97 million, decidedly not multiples.
+
+```{r Welfare Getting Data In, echo=FALSE, include=FALSE}
+library(readr)
+welfare <- read_csv("https://github.uiowa.edu/raw/STAT4580-Spring-2019/acnnngham/master/HW2/hw2-welfare.csv?token=AAAGvthMDL2xJvnfKlNabsh-YJYZTB8hks5cYIYzwA%3D%3D")
+```
+
+Adding the "origin=0" command will fix this issue as it will stretch the range of the axis showing "onAssistance" to zero, as shown:
+
+```{r Welfare Bar Chart w/ Zero Baseline, message=FALSE}
+library(lattice)
+(welfareBar <- barchart(quarter ~ onAssistance, data=welfare, origin=0))
+```
+
+This bar chart with the range of values stretching down to zero is more appropriate, as observervations made about the ratio of different bar values can now be appropriately put into perspective.  While there is a clear upward trend, it is not nearly as pronounced as with the graphic from the USA Today article.
+
+# Part 4
+
+```{r Gapminder Data Wrangling, echo=FALSE, message=FALSE}
+library(gapminder)
+library(dplyr)
+gap1990 <- filter(gapminder, year >= 1990)
+groupCountry <- group_by(gap1990, country)
+groupContinent <- group_by(groupCountry, continent)
+groupLifeExp <- summarize(groupContinent, avgLifeExp = mean(lifeExp))
+```
+
+```{r Gapminder Bar Chart, echo=FALSE}
+(gapBarChart <- barchart(avgLifeExp ~ continent, data=groupLifeExp))
+```
+
+```{r Gapminder Dot Plot, echo=FALSE}
+(gapDotPlot <- dotplot(avgLifeExp ~ continent, data=groupLifeExp))
+```
+
+I prefer the Dot Plot since they are easier on the eyes when graphing group summaries while conveying the same information that a Bar Chart does. Also, Bar Charts suffer from the "Zero-Baseline" issue mentioned in Part 3, as viewers are inherently drawn to the length of bars in comparison to others, while this is not the case in Dot Plots.  Additionally, it would make more sense to evaluate numerical differences between continents, rather than the ratio, in the variable of interest, average life expectancy.  Dot Plots suit these analyses better.  If we were to exclude Africa and Oceania, I would be even more compelled to use a Dot Plot, as the differences in average life expectancy are not very big (only an 8 year spread among the three included continents), so using a Bar Chart would mislead the viewer into observing larger differences, even if they are not meaningful.
